@@ -4,26 +4,140 @@ import { IndexeddbPersistence } from "y-indexeddb";
 const byId = id => document.getElementById(id);
 const status = byId("status");
 const editor = byId("document");
+const title = byId("document-title");
 const people = byId("people");
 const displayName = byId("name");
 const id = location.hash.slice(1);
+const roomPattern = /^[A-Za-z0-9_-]{24}$/;
+const createButtons = [byId("create"), byId("create-recent")];
+const service = byId("service");
+const retry = byId("retry");
+const recentKey = "side-by-side:recent";
+let available = false;
+let creating = false;
+let healthRequest = 0;
 
-byId("create").addEventListener("click", async event => {
-  const button = event.currentTarget;
-  button.disabled = true;
+function readRecents() {
+  try {
+    const value = JSON.parse(localStorage.getItem(recentKey) || "[]");
+    return Array.isArray(value) ? value.filter(item =>
+      item && roomPattern.test(item.id) && typeof item.title === "string" && Number.isFinite(item.updated)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function remember(value) {
+  try {
+    const rows = [{ id, title: value || "Untitled document", updated: Date.now() },
+      ...readRecents().filter(row => row.id !== id)].slice(0, 12);
+    localStorage.setItem(recentKey, JSON.stringify(rows));
+  } catch {
+    // Recent shortcuts are optional when browser storage is restricted.
+  }
+}
+
+function showDocuments() {
+  byId("welcome").hidden = true;
+  byId("dashboard").hidden = false;
+  byId("workspace").hidden = true;
+  byId("features-link").hidden = true;
+  const rows = readRecents();
+  byId("recent").replaceChildren(...rows.map(row => {
+    const link = document.createElement("a");
+    link.className = "document-card";
+    link.href = "#" + row.id;
+    const name = document.createElement("strong");
+    name.textContent = row.title;
+    const date = document.createElement("span");
+    date.textContent = new Date(row.updated).toLocaleDateString();
+    link.append(name, date);
+    return link;
+  }));
+  byId("recent-empty").hidden = rows.length > 0;
+}
+
+function updateButtons() {
+  for (const button of createButtons) button.disabled = !available || creating;
+}
+
+async function checkHealth() {
+  const request = ++healthRequest;
+  available = false;
+  updateButtons();
+  retry.hidden = true;
+  service.dataset.state = "checking";
+  byId("service-message").textContent = "Checking server…";
+  try {
+    const response = await fetch("./health", { signal: AbortSignal.timeout(12000), cache: "no-store" });
+    if (!response.ok || (await response.json()).status !== "ok") throw new Error();
+    if (request !== healthRequest) return;
+    available = true;
+    service.dataset.state = "online";
+    byId("service-message").textContent = "Server online";
+  } catch {
+    if (request !== healthRequest) return;
+    service.dataset.state = "offline";
+    byId("service-message").textContent = "Server unavailable or waking up. Retry to create a workspace.";
+    retry.hidden = false;
+  } finally {
+    if (request === healthRequest) updateButtons();
+  }
+}
+
+retry.addEventListener("click", checkHealth);
+window.addEventListener("online", checkHealth);
+window.addEventListener("offline", checkHealth);
+checkHealth();
+
+for (const button of [byId("documents-nav"), byId("browse"), byId("back-documents")]) {
+  button.disabled = false;
+  button.addEventListener("click", () => {
+    if (roomPattern.test(id)) location.hash = "documents";
+    else {
+      history.replaceState(null, "", "#documents");
+      showDocuments();
+    }
+  });
+}
+
+byId("open-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const raw = byId("invite").value.trim();
+  try {
+    const url = new URL(roomPattern.test(raw) ? "#" + raw : raw, location.href);
+    if (url.origin !== location.origin || url.pathname !== location.pathname || !roomPattern.test(url.hash.slice(1))) {
+      throw new Error();
+    }
+    location.hash = url.hash;
+  } catch {
+    byId("open-error").textContent = "Enter an invite link from this Side by Side site.";
+  }
+});
+
+async function createRoom() {
+  if (!available || creating) return;
+  creating = true;
+  updateButtons();
+  byId("service-message").textContent = "Creating workspace…";
   byId("creation-error").textContent = "";
   try {
-    const response = await fetch("/api/rooms", { method: "POST" });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error);
+    const response = await fetch("./api/rooms", { method: "POST", signal: AbortSignal.timeout(15000) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !roomPattern.test(result.id)) throw new Error(result.error || "Unable to create workspace.");
     location.hash = result.id;
   } catch (error) {
     byId("creation-error").textContent = error.message || "Unable to create a workspace.";
+    checkHealth();
   } finally {
-    button.disabled = false;
+    creating = false;
+    updateButtons();
   }
+}
+for (const button of createButtons) button.addEventListener("click", createRoom);
+window.addEventListener("hashchange", () => {
+  if (location.hash !== "#features" || roomPattern.test(id)) location.reload();
 });
-window.addEventListener("hashchange", () => location.reload());
 
 function change(before, after) {
   let start = 0;
@@ -37,13 +151,16 @@ function change(before, after) {
   return { start, deleted: before.length - start - end, inserted: after.slice(start, after.length - end) };
 }
 
-if (id && !/^[A-Za-z0-9_-]{24}$/.test(id)) {
-  status.textContent = "Invalid invite link";
-} else if (id) {
+if (id === "documents") showDocuments();
+else if (id && id !== "features" && !roomPattern.test(id)) {
+  byId("creation-error").textContent = "This invite link is invalid.";
+} else if (roomPattern.test(id)) {
   byId("welcome").hidden = true;
   byId("workspace").hidden = false;
+  byId("features-link").hidden = true;
   const doc = new Y.Doc();
   const text = doc.getText("document");
+  const titleText = doc.getText("title");
   const remote = Symbol("server");
   let socket;
   let vector;
@@ -54,41 +171,53 @@ if (id && !/^[A-Za-z0-9_-]{24}$/.test(id)) {
   let retries = 0;
   let composing = false;
   let compositionBase;
+  let compositionField;
   let localCache = false;
 
   function render() {
     if (composing) return;
-    const value = text.toString();
-    if (editor.value !== value) {
-      const { start, deleted, inserted } = change(editor.value, value);
-      editor.setRangeText(inserted, start, start + deleted, "preserve");
+    for (const [field, model] of [[editor, text], [title, titleText]]) {
+      const value = model.toString();
+      if (field.value === value) continue;
+      const { start, deleted, inserted } = change(field.value, value);
+      field.setRangeText(inserted, start, start + deleted, "preserve");
     }
-    byId("length").textContent = value.length.toLocaleString() + " / 100,000 characters";
+    byId("length").textContent = text.length.toLocaleString() + " / 100,000 characters";
   }
 
-  function edit(base, value) {
+  function edit(model, base, value) {
     const { start, deleted, inserted } = change(base, value);
     doc.transact(() => {
-      if (deleted) text.delete(start, deleted);
-      if (inserted) text.insert(start, inserted);
+      if (deleted) model.delete(start, deleted);
+      if (inserted) model.insert(start, inserted);
     });
   }
 
   let deferred = [];
-  editor.addEventListener("compositionstart", () => {
-    composing = true;
-    compositionBase = text.toString();
-  });
-  editor.addEventListener("compositionend", () => {
-    composing = false;
-    edit(compositionBase, editor.value);
-    for (const update of deferred) Y.applyUpdate(doc, update, remote);
-    deferred = [];
-    render();
-  });
-  editor.addEventListener("input", () => {
-    if (!composing) edit(text.toString(), editor.value);
-  });
+  for (const [field, model] of [[editor, text], [title, titleText]]) {
+    field.addEventListener("compositionstart", () => {
+      composing = true;
+      compositionField = field;
+      compositionBase = model.toString();
+    });
+    field.addEventListener("compositionend", () => {
+      if (compositionField !== field) return;
+      composing = false;
+      edit(model, compositionBase, field.value);
+      for (const update of deferred) Y.applyUpdate(doc, update, remote);
+      deferred = [];
+      render();
+    });
+    field.addEventListener("input", () => {
+      if (!composing) edit(model, model.toString(), field.value);
+    });
+  }
+  titleText.observe(() => remember(titleText.toString()));
+
+  function enableEditor() {
+    editor.disabled = title.disabled = byId("download").disabled = false;
+    remember(titleText.toString());
+  }
 
   function schedule() {
     clearTimeout(timer);
@@ -124,12 +253,14 @@ if (id && !/^[A-Za-z0-9_-]{24}$/.test(id)) {
 
   function connect() {
     status.textContent = "Connecting…";
-    socket = new WebSocket(new URL("/live/" + id, location.href).href.replace(/^http/, "ws"));
+    socket = new WebSocket(new URL("./live/" + id, location.href).href.replace(/^http/, "ws"));
     socket.binaryType = "arraybuffer";
     socket.onopen = sendName;
     socket.onmessage = event => {
       if (typeof event.data === "string") {
-        people.replaceChildren(...JSON.parse(event.data).people.map(name => {
+        const names = JSON.parse(event.data).people;
+        byId("presence-empty").hidden = names.length > 0;
+        people.replaceChildren(...names.map(name => {
           const item = document.createElement("li");
           item.textContent = name;
           return item;
@@ -152,7 +283,8 @@ if (id && !/^[A-Za-z0-9_-]{24}$/.test(id)) {
           Y.applyUpdate(source, update);
           vector = Y.encodeStateVector(source);
           source.destroy();
-          editor.disabled = false;
+          enableEditor();
+          if (!available) checkHealth();
           retries = 0;
           render();
           schedule();
@@ -163,6 +295,8 @@ if (id && !/^[A-Za-z0-9_-]{24}$/.test(id)) {
       vector = pending = undefined;
       saved = -1;
       people.replaceChildren();
+      byId("presence-empty").hidden = false;
+      if (available) checkHealth();
       if (event.code === 1008 || event.code === 1009) {
         status.textContent = "Server rejected a change. Export your text.";
         return;
@@ -194,7 +328,7 @@ if (id && !/^[A-Za-z0-9_-]{24}$/.test(id)) {
     const cache = new IndexeddbPersistence("workspace-" + id, doc);
     cache.whenSynced.then(() => {
       localCache = true;
-      if (text.length) editor.disabled = false;
+      if (text.length || titleText.length) enableEditor();
       render();
     }).catch(() => {});
   } catch {

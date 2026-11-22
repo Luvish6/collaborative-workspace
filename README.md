@@ -12,6 +12,8 @@ npm start
 
 Open `http://localhost:3000`. Requires Node.js 22.13 or later. Run `npm test` for HTTP and WebSocket integration tests, and `npm run bench` for the reproducible benchmark in [RESULTS.md](RESULTS.md).
 
+For browser regression coverage, run `npx playwright-core install chromium` once and then `npm run test:browser` after building. Set `BROWSER_EXE` to an installed Chromium or Edge binary to skip the download. The test opens separate browser contexts and verifies edits, presence, refresh, offline recovery, and database restart.
+
 ## Architecture
 
 Yjs merges concurrent plain-text edits. Each browser saves a local copy in IndexedDB and exchanges binary updates over WebSocket. On reconnect, the server sends a snapshot and the browser submits its delta. The server validates updates and serializes writes per room. It persists a validated snapshot before acknowledging and broadcasting an edit. Presence is transient. Production uses a separate Postgres database, while SQLite provides local persistence without an external service.

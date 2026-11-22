@@ -3,44 +3,84 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Create a private-by-link shared document with live editing and offline sync.">
-  <title>Side by Side · Collaborative Workspace</title>
-  <link rel="stylesheet" href="/style.css">
-  <script type="module" src="/app.js"></script>
+  <meta name="theme-color" content="#f7f7fb">
+  <meta name="description" content="A quiet, real-time workspace for writing together.">
+  <title>Side by Side — Write together</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
-  <main>
-    <header class="masthead">
-      <a class="wordmark" href="/">Side by Side</a>
-      <p id="status" role="status" class="status">Ready</p>
-    </header>
+  <header class="site-header">
+    <nav class="nav wrap" aria-label="Main navigation">
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"></span>Side by Side</a>
+      <div class="nav-actions"><a href="#features" id="features-link">Features</a><button id="documents-nav" type="button" class="quiet" disabled>Documents</button></div>
+    </nav>
+  </header>
+  <main class="wrap">
+    <div class="service" id="service" data-state="checking">
+      <span class="indicator" aria-hidden="true"></span><span id="service-message" role="status">Checking server…</span>
+      <button type="button" class="quiet" id="retry" hidden>Retry</button>
+    </div>
     <section id="welcome">
-      <h1>Write together<br>in real time.</h1>
-      <p>Open a shared document, send the link, and edit with your team. Changes sync as you type and merge when you reconnect.</p>
-      <button id="create">Create workspace</button>
-      <p id="creation-error" role="alert"></p>
+      <div class="hero">
+        <div>
+          <h1>Good work starts<br>side by side.</h1>
+          <p>Write together in a shared document. Send an invite, see who’s there, and keep your changes when your connection drops.</p>
+          <div class="actions">
+            <button id="create" type="button" disabled>Create workspace <span aria-hidden="true">↗</span></button>
+            <button type="button" class="secondary" id="browse" disabled>Open documents</button>
+          </div>
+        </div>
+        <div class="hero-preview" aria-label="Sample workspace preview">
+          <div class="preview-top"><span>Side by Side</span><span>Sample document</span></div>
+          <div class="preview-paper"><span class="preview-label">Project notes</span><h2>Design review</h2><p>What should we change before the next release?</p><div class="preview-line"></div><div class="preview-line short"></div></div>
+          <div class="preview-footer"><span class="avatar">J</span><span class="avatar">M</span><span>Writing together</span></div>
+        </div>
+      </div>
+      <section id="features" class="feature-grid" aria-label="Features">
+        <article><span aria-hidden="true">↔</span><h2>Live collaboration</h2><p>Changes appear as others write. Concurrent edits merge into the same document.</p></article>
+        <article><span aria-hidden="true">↗</span><h2>Link-based invites</h2><p>Share an edit link with your team. Everyone with the link can contribute.</p></article>
+        <article><span aria-hidden="true">◷</span><h2>Keep writing offline</h2><p>Continue in your current document and sync changes when you reconnect.</p></article>
+      </section>
     </section>
-    <section id="workspace" hidden>
-      <div class="workspace-heading">
-        <div><h1>Shared document</h1><p id="link-feedback" role="status">Anyone with the link can edit.</p></div>
-        <div class="actions"><button id="share">Copy invite link</button><button class="secondary" id="download">Export text</button></div>
+    <section id="dashboard" class="surface-section" hidden>
+      <div class="section-heading"><div><h1>Documents</h1><p>Recent workspaces opened on this device.</p></div><button id="create-recent" type="button" disabled>New document</button></div>
+      <form id="open-form" class="open-form">
+        <label for="invite">Open an invite link</label>
+        <div class="open-controls"><input id="invite" name="invite" placeholder="Paste a Side by Side invite link" required><button class="secondary">Open</button></div>
+      </form>
+      <p id="open-error" class="error" role="alert"></p>
+      <h2 class="recent-heading">Recently opened</h2>
+      <div id="recent" class="recent-grid"></div>
+      <p id="recent-empty" class="empty">No recent documents yet. Create a document or open an invite to get started.</p>
+    </section>
+    <section id="workspace" class="surface-section" hidden>
+      <div class="section-heading">
+        <div><button class="quiet back" id="back-documents" type="button">← Documents</button><h1>Workspace</h1></div>
+        <div class="actions"><p id="status" role="status" class="session-status">Connecting…</p><button id="share" type="button">Share invite</button></div>
       </div>
       <div class="layout">
-        <div class="editor">
-          <label for="document">Document</label>
-          <textarea id="document" spellcheck="true" maxlength="100000" placeholder="Start writing…" disabled></textarea>
-          <p id="length"></p>
-        </div>
-        <aside>
-          <label for="name">Your display name</label>
-          <input id="name" maxlength="32" value="Guest">
-          <h2>In this room</h2>
-          <ul id="people"></ul>
-          <p class="note">Invite links grant edit access. Keep them among people you trust.</p>
+        <section class="editor" aria-label="Collaborative editor">
+          <div class="toolbar"><span>Plain text</span><button class="quiet" type="button" id="download" disabled>Export .txt</button></div>
+          <div class="paper">
+            <label for="document-title" class="visually-hidden">Document title</label>
+            <input id="document-title" class="document-title" maxlength="100" placeholder="Untitled document" disabled>
+            <label for="document" class="visually-hidden">Document text</label>
+            <textarea id="document" spellcheck="true" maxlength="100000" placeholder="Start writing…" disabled></textarea>
+          </div>
+          <p id="length" class="editor-footer"></p>
+        </section>
+        <aside class="room-panel">
+          <h2>Collaborators</h2><ul id="people"></ul>
+          <p id="presence-empty">You’ll see connected collaborators here.</p>
+          <label for="name">Your display name</label><input id="name" maxlength="32" value="Guest">
+          <p class="note" id="link-feedback" role="status">Anyone with the invite link can edit.</p>
         </aside>
       </div>
     </section>
-    <noscript>Enable JavaScript to open and edit a workspace.</noscript>
+    <p class="error" id="creation-error" role="alert"></p>
+    <noscript><p class="error">Enable JavaScript to connect to the workspace.</p></noscript>
   </main>
+  <footer class="wrap site-footer"><span>Side by Side</span><a href="https://github.com/Luvish6/collaborative-workspace">Source on GitHub ↗</a></footer>
 </body>
 </html>

@@ -74,12 +74,12 @@ export async function createWorkspace({ store, origin, createLimit = 12 }) {
         }
         return reply(response, 201, { id });
       }
-      const asset = request.method === "GET" && assets.get(path);
+      const asset = (request.method === "GET" || request.method === "HEAD") && assets.get(path);
       if (!asset) return reply(response, 404, { error: "Not found." });
       const [file, type] = asset;
       const body = await readFile(new URL(file, publicRoot));
       response.writeHead(200, { ...headers, "Content-Type": type });
-      response.end(body);
+      response.end(request.method === "HEAD" ? undefined : body);
     } catch (error) {
       console.error("Request failed:", error.message);
       reply(response, 503, { error: "Workspace temporarily unavailable." });
@@ -175,10 +175,14 @@ export async function createWorkspace({ store, origin, createLimit = 12 }) {
         try {
           Y.applyUpdate(doc, room.snapshot);
           Y.applyUpdate(doc, data);
+          const fields = [...doc.share.keys()];
           const text = doc.getText("document");
+          const title = doc.getText("title");
           const snapshot = Y.encodeStateAsUpdate(doc);
-          if (doc.share.size !== 1 || text.length > maxText || snapshot.length > maxSnapshot ||
-              text.toDelta().some(delta => typeof delta.insert !== "string" || delta.attributes)) {
+          if (fields.some(field => field !== "document" && field !== "title") ||
+              text.length > maxText || title.length > 100 || snapshot.length > maxSnapshot ||
+              /[\r\n]/.test(title.toString()) || [text, title].some(field =>
+                field.toDelta().some(delta => typeof delta.insert !== "string" || delta.attributes))) {
             socket.close(1009, "Document limit exceeded");
             return;
           }
@@ -217,6 +221,11 @@ export async function createWorkspace({ store, origin, createLimit = 12 }) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    await Promise.all([...assets.values()].map(([file]) => readFile(new URL(file, publicRoot))));
+  } catch (error) {
+    throw new Error("Workspace assets missing. Run npm run build before npm start.", { cause: error });
+  }
   const store = await openStore({ url: process.env.DATABASE_URL, file: process.env.WORKSPACE_DB });
   const origin = process.env.PUBLIC_ORIGIN || process.env.RENDER_EXTERNAL_URL;
   const app = await createWorkspace({ store, origin });
