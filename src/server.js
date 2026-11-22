@@ -226,7 +226,19 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   } catch (error) {
     throw new Error("Workspace assets missing. Run npm run build before npm start.", { cause: error });
   }
-  const store = await openStore({ url: process.env.DATABASE_URL, file: process.env.WORKSPACE_DB });
+  let databaseUrl = process.env.DATABASE_URL;
+  if (process.env.NEON_MIGRATION_URL && databaseUrl !== process.env.NEON_MIGRATION_URL) {
+    try {
+      const { migrateRenderRooms } = await import("./migrate-render-rooms.js");
+      if (await migrateRenderRooms(databaseUrl, process.env.NEON_MIGRATION_URL, process.env.NEON_MIGRATION_PHASE)) {
+        databaseUrl = process.env.NEON_MIGRATION_URL;
+      }
+    } catch (error) {
+      console.error("Database migration failed:", error.code || error.name);
+      process.exit(1);
+    }
+  }
+  const store = await openStore({ url: databaseUrl, file: process.env.WORKSPACE_DB });
   const origin = process.env.PUBLIC_ORIGIN || process.env.RENDER_EXTERNAL_URL;
   const app = await createWorkspace({ store, origin });
   const port = Number(process.env.PORT || 3000);
