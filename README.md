@@ -21,3 +21,5 @@ Invite links are bearer capabilities with 144 bits of randomness. Anyone with a 
 ## Deploy
 
 Use one Render Node web service with `npm ci && npm run build` and `npm start`. Run in the same region as Postgres and set `DATABASE_URL` to its internal URL as a secret. Render provides `PORT` and `RENDER_EXTERNAL_URL`. Elsewhere, set `PUBLIC_ORIGIN` to the public HTTPS origin. The free Render web service can cold-start after inactivity, and its free database expires after 30 days. Export work before the demo database expires.
+
+The included Blueprint expects an existing Postgres instance named `side-by-side-workspace-db` in Singapore. It provisions a free web service and binds the database connection without storing it in source control.
