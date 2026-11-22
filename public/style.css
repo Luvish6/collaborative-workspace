@@ -1,0 +1,34 @@
+* { box-sizing: border-box; }
+:root { color-scheme: light; font-family: system-ui, sans-serif; background: #f6f5ef; color: #20231e; }
+body { margin: 0; }
+main { width: min(1120px, calc(100% - 2rem)); margin: auto; }
+[hidden] { display: none !important; }
+.masthead { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.15rem 0; border-bottom: 1px solid #d8d8cd; }
+.wordmark { font-weight: 800; letter-spacing: -.05em; font-size: 1.3rem; color: inherit; text-decoration: none; }
+.status { color: #344a30; margin: 0; font-size: .86rem; text-align: right; }
+#welcome { margin: clamp(3rem, 11vw, 8rem) 0; }
+#welcome h1 { font-size: clamp(3rem, 10vw, 7rem); letter-spacing: -.085em; line-height: .94; margin: 0; }
+p { line-height: 1.55; }
+#welcome p { max-width: 34rem; color: #485246; }
+button { border: 1px solid #293928; border-radius: .5rem; padding: .75rem 1rem; background: #293928; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+button:disabled { opacity: .5; cursor: wait; }
+button:hover:not(:disabled) { background: #405640; }
+button.secondary { background: transparent; color: #293928; }
+button.secondary:hover:not(:disabled) { background: #e5ecdf; }
+:focus-visible { outline: 3px solid #648452; outline-offset: 3px; }
+.workspace-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin: 2rem 0 1.2rem; }
+.workspace-heading h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 3rem); letter-spacing: -.06em; }
+.workspace-heading p { margin: .3rem 0 0; color: #4c5549; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 24%); gap: 1rem; padding-bottom: 2rem; }
+.editor, aside { background: #fffffc; border: 1px solid #deded3; border-radius: .8rem; padding: clamp(1rem, 3vw, 1.5rem); }
+label { display: block; font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
+textarea, input { background: #fff; color: inherit; display: block; border: 1px solid #b5bcad; border-radius: .4rem; padding: .75rem; width: 100%; font: inherit; }
+textarea { min-height: 53vh; resize: vertical; line-height: 1.65; }
+#length, .note { font-size: .8rem; color: #566353; margin-bottom: 0; }
+aside h2 { font-size: 1rem; margin-top: 1.5rem; }
+ul { padding: 0; list-style: none; }
+li { padding: .35rem 0; overflow-wrap: anywhere; }
+li::before { content: "●"; color: #57764d; font-size: .65rem; margin-right: .5rem; }
+#creation-error { color: #a12d24; }
+@media (max-width: 700px) { .layout { grid-template-columns: 1fr; } textarea { min-height: 42vh; } }

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create a private-by-link shared document with live editing and offline sync.">
+  <title>Side by Side · Collaborative Workspace</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <header class="masthead">
+      <a class="wordmark" href="/">Side by Side</a>
+      <p id="status" role="status" class="status">Ready</p>
+    </header>
+    <section id="welcome">
+      <h1>Write together<br>in real time.</h1>
+      <p>Open a shared document, send the link, and edit with your team. Changes sync as you type and merge when you reconnect.</p>
+      <button id="create">Create workspace</button>
+      <p id="creation-error" role="alert"></p>
+    </section>
+    <section id="workspace" hidden>
+      <div class="workspace-heading">
+        <div><h1>Shared document</h1><p id="link-feedback" role="status">Anyone with the link can edit.</p></div>
+        <div class="actions"><button id="share">Copy invite link</button><button class="secondary" id="download">Export text</button></div>
+      </div>
+      <div class="layout">
+        <div class="editor">
+          <label for="document">Document</label>
+          <textarea id="document" spellcheck="true" maxlength="100000" placeholder="Start writing…" disabled></textarea>
+          <p id="length"></p>
+        </div>
+        <aside>
+          <label for="name">Your display name</label>
+          <input id="name" maxlength="32" value="Guest">
+          <h2>In this room</h2>
+          <ul id="people"></ul>
+          <p class="note">Invite links grant edit access. Keep them among people you trust.</p>
+        </aside>
+      </div>
+    </section>
+    <noscript>Enable JavaScript to open and edit a workspace.</noscript>
+  </main>
+</body>
+</html>
