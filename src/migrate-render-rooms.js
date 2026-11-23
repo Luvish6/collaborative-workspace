@@ -66,10 +66,11 @@ export function checkedNeonUrl(value) {
   } catch {
     throw new MigrationCheck("NEON_MIGRATION_URL is not a valid URL");
   }
-  if (!["postgres:", "postgresql:"].includes(url.protocol) ||
-      !url.hostname.endsWith(".neon.tech") || url.hostname.includes("-pooler")) {
-    throw new MigrationCheck("NEON_MIGRATION_URL must be a direct Neon Postgres connection");
+  if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname.endsWith(".neon.tech")) {
+    throw new MigrationCheck("NEON_MIGRATION_URL must be a Neon Postgres connection");
   }
+  // Neon pairs the pooled and direct endpoints under the same hostname prefix.
+  url.hostname = url.hostname.replace(/-pooler\./, ".");
   url.searchParams.set("sslmode", "verify-full");
   return url.href;
 }
