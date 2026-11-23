@@ -229,9 +229,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   let databaseUrl = process.env.DATABASE_URL;
   if (process.env.NEON_MIGRATION_URL && databaseUrl !== process.env.NEON_MIGRATION_URL) {
     try {
-      const { migrateRenderRooms } = await import("./migrate-render-rooms.js");
-      if (await migrateRenderRooms(databaseUrl, process.env.NEON_MIGRATION_URL, process.env.NEON_MIGRATION_PHASE)) {
-        databaseUrl = process.env.NEON_MIGRATION_URL;
+      const { checkedNeonUrl, migrateRenderRooms } = await import("./migrate-render-rooms.js");
+      const target = checkedNeonUrl(process.env.NEON_MIGRATION_URL);
+      if (await migrateRenderRooms(databaseUrl, target, process.env.NEON_MIGRATION_PHASE)) {
+        databaseUrl = target;
       }
     } catch (error) {
       console.error("Database migration failed:", error.code || error.name);
